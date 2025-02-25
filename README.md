@@ -57,27 +57,27 @@ Basic Syntax:
 ## Phases The Project Will Go Through
 
 ### Phase 1: Core Crypter Functionality (Encryption & Execution) – [IN PROGRESS]
-✅ Implement CLI for EXE/DLL encryption selection.
-✅ Support AES-256 and ChaCha20 for encryption.
-✅ Develop a decryption stub that executes payloads.
-🔄 Integrate process hollowing (partially done, needs refinement).
-🔄 Implement syscall obfuscation (work in progress).
+- ✅ Implement CLI for EXE/DLL encryption selection.
+- ✅ Support AES-256 and ChaCha20 for encryption.
+- ✅ Develop a decryption stub that executes payloads.
+- 🔄 Integrate process hollowing (partially done, needs refinement).
+- 🔄 Implement syscall obfuscation (work in progress).
 
 ### Phase 2: Evasion & Obfuscation
-🔲 Encrypt stub sections to hinder static analysis.
-🔲 Implement polymorphic techniques (e.g., junk code insertion).
-🔲 Modify PE structure to avoid common signatures.
-🔲 Implement in-memory execution for stealth.
+- 🔲 Encrypt stub sections to hinder static analysis.
+- 🔲 Implement polymorphic techniques (e.g., junk code insertion).
+- 🔲 Modify PE structure to avoid common signatures.
+- 🔲 Implement in-memory execution for stealth.
 
 ### Phase 3: Persistence & Payload Execution Variants
-🔲 Implement optional registry-based persistence.
-🔲 Add scheduled task execution.
-🔲 Support multiple payload execution methods (DLL injection, APC queue, etc.).
+- 🔲 Implement optional registry-based persistence.
+- 🔲 Add scheduled task execution.
+- 🔲 Support multiple payload execution methods (DLL injection, APC queue, etc.).
 
 ### Phase 4: Final Testing & Optimization
-🔲 Test against different Windows versions.
-🔲 Improve stub efficiency (reduce size, optimize performance).
-🔲 Validate against common AV/EDR solutions.
-🔲 Implement automated payload generation.
+- 🔲 Test against different Windows versions.
+- 🔲 Improve stub efficiency (reduce size, optimize performance).
+- 🔲 Validate against common AV/EDR solutions.
+- 🔲 Implement automated payload generation.
 
 
