@@ -12,12 +12,12 @@ pub fn encrypt_payload(payload: &[u8], encryption_type: &str, verbose: bool) -> 
     let nonce = generate_random_bytes(12);
 
     let encrypted = match encryption_type {
-        "AES-256" => {
+        "aes" => {  // <- Match the CLI argument directly
             let aes_key = Key::<Aes256Gcm>::from_slice(&key);
             let cipher = Aes256Gcm::new(aes_key);
             cipher.encrypt(Nonce::from_slice(&nonce), payload).expect("Encryption failed")
         },
-        "ChaCha20" => {
+        "cha" => {  // <- Match the CLI argument directly
             let cipher = ChaCha20Poly1305::new(ChaChaKey::from_slice(&key));
             cipher.encrypt(ChaChaNonce::from_slice(&nonce), payload).expect("Encryption failed")
         },
