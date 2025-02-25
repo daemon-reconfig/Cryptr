@@ -25,7 +25,7 @@ curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
 ```
 Clone this repository 
 ```sh
-git clone https://github.com/yourrepo/crypter.git
+git clone [https://github.com/yourrepo/crypter.git](https://github.com/daemon-reconfig/Cryptr.git)
 cd crypter
 cargo build --release
 ```
