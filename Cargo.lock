@@ -3,6 +3,18 @@
 version = 4
 
 [[package]]
+name = "Cryptr"
+version = "0.0.1"
+dependencies = [
+ "aes-gcm",
+ "chacha20poly1305",
+ "clap",
+ "colored",
+ "rand",
+ "windows",
+]
+
+[[package]]
 name = "aead"
 version = "0.5.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -418,18 +430,6 @@ checksum = "fc1de2c688dc15305988b563c3854064043356019f97a4b46276fe734c4f07ea"
 dependencies = [
  "crypto-common",
  "subtle",
-]
-
-[[package]]
-name = "untitled"
-version = "0.1.0"
-dependencies = [
- "aes-gcm",
- "chacha20poly1305",
- "clap",
- "colored",
- "rand",
- "windows",
 ]
 
 [[package]]
